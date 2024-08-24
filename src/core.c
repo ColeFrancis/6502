@@ -11,7 +11,7 @@ void exec_inst(Core_t *core, uint8_t *ram)
 	uint8_t inst;
         uint16_t addr;
         uint8_t addr_hi, addr_lo;
-        uint8_t num;
+        register uint8_t num, c_in;
 	
 	inst = ram[core->pc];
 
@@ -388,28 +388,120 @@ void exec_inst(Core_t *core, uint8_t *ram)
                         core->pc++;
                         break;
 
-		case 0x06: // ASL zpg
+		case 0x06: // ASL zpg -- Tested
+                        num = ram[ram[core->pc]];
+                        core->sr = (core->sr & 0xfe) | (num >> 7);
+
+                        num <<= 1;
+
+                        NZ_FLAGS(num);
+
+                        ram[ram[core->pc]] = num;
+
+                        core->pc++;
 			break;
 
                 case 0x16: // ASL zpg,X
+                        num = ram[0xFF & (ram[core->pc] + core->x)];
+                        core->sr = (core->sr & 0xfe) | (num >> 7);
+
+                        num <<= 1;
+
+                        NZ_FLAGS(num);
+
+                        ram[0xFF & (ram[core->pc] + core->x)] = num;
+
+                        core->pc++;
                         break;
 
-                case 0x26: // ROL zpg
+                case 0x26: // ROL zpg -- Tested
+                        c_in = core->sr & 0x01;
+
+                        num = ram[ram[core->pc]];
+                        core->sr = (core->sr & 0xfe) | (num >> 7);
+
+                        num <<= 1;
+                        num |= c_in; // Rotate in carry
+
+                        NZ_FLAGS(num);
+
+                        ram[ram[core->pc]] = num;
+
+                        core->pc++;
                         break;
 
-                case 0x36: // ROL rpg,X
+                case 0x36: // ROL zpg,X
+                        c_in = core->sr & 0x01;
+
+                        num = ram[0xFF & (ram[core->pc] + core->x)];
+                        core->sr = (core->sr & 0xfe) | (num >> 7);
+
+                        num <<= 1;
+                        num |= c_in; // Rotate in carry
+
+                        NZ_FLAGS(num);
+
+                        ram[0xFF & (ram[core->pc] + core->x)] = num;
+
+                        core->pc++;
                         break;
 
                 case 0x46: // LSR zpg
+                        num = ram[ram[core->pc]];
+                        core->sr = (core->sr & 0xfe) | (num & 0x01);
+
+                        num >>= 1;
+
+                        NZ_FLAGS(num);
+
+                        ram[ram[core->pc]] = num;
+
+                        core->pc++;
                         break;
 
                 case 0x56: // LSR zpg,X
+                        num = ram[0xFF & (ram[core->pc] + core->x)];
+                        core->sr = (core->sr & 0xfe) | (num & 0x01);
+
+                        num >>= 1;
+
+                        NZ_FLAGS(num);
+
+                        ram[0xFF & (ram[core->pc] + core->x)] = num;
+
+                        core->pc++;
                         break;
 
-                case 0x66: // ROR zpg
+                case 0x66: // ROR zpg -- Tested
+                        c_in = core->sr & 0x01;
+
+                        num = ram[ram[core->pc]];
+                        core->sr = (core->sr & 0xfe) | (num & 0x01);
+
+                        num >>= 1;
+                        num |= c_in << 7; // Rotate in carry
+
+                        NZ_FLAGS(num);
+
+                        ram[ram[core->pc]] = num;
+
+                        core->pc++;
                         break;
 
                 case 0x76: // ROR zpg,X
+                        c_in = core->sr & 0x01;
+
+                        num = ram[0xFF & (ram[core->pc] + core->x)];
+                        core->sr = (core->sr & 0xfe) | (num & 0x01);
+
+                        num >>= 1;
+                        num |= c_in << 7; // Rotate in carry
+
+                        NZ_FLAGS(num);
+
+                        ram[0xFF & (ram[core->pc] + core->x)] = num;
+
+                        core->pc++;
                         break;
 
                 case 0x86: // STX zpg
@@ -677,23 +769,48 @@ void exec_inst(Core_t *core, uint8_t *ram)
                         core->pc++;
                         break;
 
-		case 0x0a: // ASL A
+		case 0x0a: // ASL A --- Tested
+                        core->sr = (core->sr & 0xfe) | (core->a >> 7);
+
+                        core->a <<= 1;
+
+                        NZ_FLAGS(core->a);
 			break;
 
                 case 0x2a: // ROL A
+                        c_in = core->sr & 0x01;
+
+                        core->sr = (core->sr & 0xfe) | (core->a >> 7);
+
+                        core->a <<= 1;
+                        core->a |= c_in; // Rotate in carry
+
+                        NZ_FLAGS(core->a);
                         break;
 
                 case 0x4a: // LSR A
+                        core->sr = (core->sr & 0xfe) | (core->a & 0x01);
+
+                        core->a >>= 1;
+
+                        NZ_FLAGS(core->a);
                         break;
 
-                case 0x6a: // ROR A
+                case 0x6a: // ROR A --- Tested
+                        c_in = core->sr & 0x01;
+
+                        core->sr = (core->sr & 0xfe) | (core->a & 0x01);
+
+                        core->a >>= 1;
+                        core->a |= c_in << 7; // Rotate in carry
+
+                        NZ_FLAGS(core->a);
                         break;
 
                 case 0x8a: // TXA impl
                         core->a = core->x;
 
                         NZ_FLAGS(core->a);
-
                         break;
 
                 case 0x9a: // TXS impl --- Tested
@@ -895,28 +1012,128 @@ void exec_inst(Core_t *core, uint8_t *ram)
                         core->pc++;
                         break;
 
-		case 0x0e: // ASL abs
+		case 0x0e: // ASL abs --- Tested
+                        addr = ram[core->pc++] | (ram[core->pc] << 8);
+                        num = ram[addr];
+                        core->sr = (core->sr & 0xfe) | (num >> 7);
+
+                        num <<= 1;
+
+                        NZ_FLAGS(num);
+
+                        ram[addr] = num;
+
+                        core->pc++;
 			break;
 
                 case 0x1e: // ASL abs,X
+                        addr = ram[core->pc++] | (ram[core->pc] << 8);
+                        num = ram[addr + core->x];
+                        core->sr = (core->sr & 0xfe) | (num >> 7);
+
+                        num <<= 1;
+
+                        NZ_FLAGS(num);
+
+                        ram[addr + core->x] = num;
+
+                        core->pc++;
                         break;
 
                 case 0x2e: // ROL abs
+                        c_in = core->sr & 0x01;
+
+                        addr = ram[core->pc++] | (ram[core->pc] << 8);
+                        num = ram[addr];
+                        core->sr = (core->sr & 0xfe) | (num >> 7);
+
+                        num <<= 1;
+                        num |= c_in; // Rotate in carry
+
+                        NZ_FLAGS(num);
+
+                        ram[addr] = num;
+
+                        core->pc++;
                         break;
 
                 case 0x3e: // ROL abs,X
+                        c_in = core->sr & 0x01;
+
+                        addr = ram[core->pc++] | (ram[core->pc] << 8);
+                        num = ram[addr + core->x];
+                        core->sr = (core->sr & 0xfe) | (num >> 7);
+
+                        num <<= 1;
+                        num |= c_in; // Rotate in carry
+
+                        NZ_FLAGS(num);
+
+                        ram[addr + core->x] = num;
+
+                        core->pc++;
                         break;
 
-                case 0x4e: // LSR abs
+                case 0x4e: // LSR abs --- Tested
+                        addr = ram[core->pc++] | (ram[core->pc] << 8);
+                        num = ram[addr];
+                        core->sr = (core->sr & 0xfe) | (num & 0x01);
+
+                        num >>= 1;
+
+                        NZ_FLAGS(num);
+
+                        ram[addr] = num;
+
+                        core->pc++;
                         break;
 
                 case 0x5e: // LSR abs,X
+                        addr = ram[core->pc++] | (ram[core->pc] << 8);
+                        num = ram[addr + core->x];
+                        core->sr = (core->sr & 0xfe) | (num & 0x01);
+
+                        num >>= 1;
+
+                        NZ_FLAGS(num);
+
+                        ram[addr + core->x] = num;
+
+                        core->pc++;
                         break;
 
                 case 0x6e: // ROR abs
+                        c_in = core->sr & 0x01;
+
+                        addr = ram[core->pc++] | (ram[core->pc] << 8);
+                        num = ram[addr];
+                        core->sr = (core->sr & 0xfe) | (num & 0x01);
+
+                        num >>= 1;
+                        num |= c_in << 7; // Rotate in carry
+
+                        NZ_FLAGS(num);
+
+                        ram[addr] = num;
+
+                        core->pc++;
                         break;
 
                 case 0x7e: // ROR abs,X
+                        c_in = core->sr & 0x01;
+
+                        addr = ram[core->pc++] | (ram[core->pc] << 8);
+                        num = ram[addr + core->x];
+                        core->sr = (core->sr & 0xfe) | (num & 0x01);
+
+                        num >>= 1;
+                        num |= c_in << 7; // Rotate in carry
+
+                        NZ_FLAGS(num);
+
+                        ram[addr + core->x] = num;
+
+                        core->pc++;
                         break;
 
                 case 0x8e: // STX abs
