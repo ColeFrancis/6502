@@ -18,7 +18,7 @@ all: $(EXEC)
 $(EXEC): $(OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-#-MMD fells compiler to generate .d files, -MF $(OBJ_DIR)/$*.d specifies where to write the file
+#-MMD tells compiler to generate .d files, -MF $(OBJ_DIR)/$*.d specifies where to write the file
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(OBJ_DIR)
 	$(CC) -MMD -MF $(OBJ_DIR)/$*.d -c -o $@ $< $(CFLAGS)

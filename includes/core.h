@@ -15,10 +15,21 @@ typedef struct {
 	uint8_t sr;
 } Core_t;
 
-void exec_inst(Core_t *core, uint8_t *ram);
+void decode_group(Core_t *core, uint8_t *ram);
+
+void decode_inst_00(Core_t *core, uint8_t *ram, uint8_t inst);
+void decode_inst_01(Core_t *core, uint8_t *ram, uint8_t inst);
+void decode_inst_10(Core_t *core, uint8_t *ram, uint8_t inst);
+
+void exec_inst_00(Core_t *core, uint8_t *ram, uint8_t inst, uint8_t *val);
+void exec_inst_01(Core_t *core, uint8_t *ram, uint8_t inst, uint8_t *val);
+void exec_inst_10(Core_t *core, uint8_t *ram, uint8_t inst, uint8_t *val);
+
+void exec_inst_old(Core_t *core, uint8_t *ram);
 
 void adc_inst(Core_t *core, uint8_t num);
 void sbc_inst(Core_t *core, uint8_t num);
+void cmp_inst(Core_t *core, uint8_t num1, uint8_t num2);
 
 #endif
 
