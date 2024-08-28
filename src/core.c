@@ -8,20 +8,28 @@
 #define NZ_FLAGS(x) core->sr = (core->sr & 0x7f) | ((x) & 0x80); \
                     (x) ? (core->sr &= 0xfd) : (core->sr |= 0x2);
 
-void decode_group(Core_t *core, uint8_t *ram)
+void decode_inst(Core_t *core, uint8_t *ram)
 {
         uint8_t inst;
+
+        if (!core->prev_res)
+        {
+                if (!core->RES_pin)
+                        return; // Remain in reset mode
+                else
+                        core_rst(core, ram);
+        }
+        core->prev_res = core->RES_pin;
+        // Interrupts triggered at end of inst execution
 	
 	inst = ram[core->pc];
+	core->pc++;
 
         #ifdef DEBUG
                 printf("Inst: %x\n", inst);
-                printf("PC: %x\n", core->pc);
                 printf("\n");
         #endif
         
-	core->pc++;
-
         // Inst format: aaabbbcc 
         //      aaa: inst
         //      bbb: addressing mode
@@ -29,19 +37,37 @@ void decode_group(Core_t *core, uint8_t *ram)
 	switch (inst & 0x03)
         {
                 case 0x00:
-                        decode_inst_00(core, ram, inst);
+                        if ((inst & 0x1f) == 0x10)
+                                exec_inst_br(core, ram, inst);
+
+                        else if ((inst & 0x1f) == 0x18)
+                                exec_inst_sb(core, inst);
+
+                        else if ((inst & 0x17) == 0)
+                                exec_sp_00(core, ram, inst);
+
+                        else if ((inst & 0xdf) == 0x4c)
+                                exec_sp_00(core, ram, inst);
+                        
+                        else
+                                decode_grp_00(core, ram, inst);
                         break;
 
                 case 0x01:
-                        decode_inst_01(core, ram, inst);
+                        decode_grp_01(core, ram, inst);
                         break;
 
                 case 0x02:
-                        decode_inst_10(core, ram, inst);
+                        if ((inst & 0x8f) == 0x8a)
+                                exec_sp_10(core, ram, inst);
+
+                        else
+                                decode_grp_10(core, ram, inst);
                         break;
         }
 
         #ifdef DEBUG
+                printf("PC: %x\n", core->pc);
                 printf("Acc: %x\n", core->a);
                 printf("X: %x\n", core->x);
                 printf("Y: %x\n", core->y);
@@ -68,9 +94,17 @@ void decode_group(Core_t *core, uint8_t *ram)
 
                 printf("\n");
         #endif
+
+        if (core->prev_nmi && !core->NMI_pin)
+                core_nmi(core, ram);
+                
+        else if (core->IRQ_pin && !(core->sr & 0x04))
+                core_irq(core, ram);
+
+        core->prev_nmi = core->NMI_pin;
 }
 
-void decode_inst_00(Core_t *core, uint8_t *ram, uint8_t inst)
+void decode_grp_00(Core_t *core, uint8_t *ram, uint8_t inst)
 {
         uint16_t addr;
         uint8_t addr_hi, addr_lo;
@@ -113,10 +147,10 @@ void decode_inst_00(Core_t *core, uint8_t *ram, uint8_t inst)
                         break;
         }
 
-        exec_inst_00(core, ram, inst, val);
+        exec_inst_00(core, inst, val);
 }
 
-void decode_inst_01(Core_t *core, uint8_t *ram, uint8_t inst)
+void decode_grp_01(Core_t *core, uint8_t *ram, uint8_t inst)
 {
         uint16_t addr;
         uint8_t addr_hi, addr_lo;
@@ -184,10 +218,10 @@ void decode_inst_01(Core_t *core, uint8_t *ram, uint8_t inst)
                         break;
         }
 
-        exec_inst_01(core, ram, inst, val);
+        exec_inst_01(core, inst, val);
 }
 
-void decode_inst_10(Core_t *core, uint8_t *ram, uint8_t inst)
+void decode_grp_10(Core_t *core, uint8_t *ram, uint8_t inst)
 {
         uint16_t addr;
         uint8_t addr_hi, addr_lo;
@@ -243,10 +277,11 @@ void decode_inst_10(Core_t *core, uint8_t *ram, uint8_t inst)
                         break;
         }
 
-        exec_inst_10(core, ram, inst, val);
+        exec_inst_10(core, inst, val);
 }
 
-void exec_inst_00(Core_t *core, uint8_t *ram, uint8_t inst, uint8_t *val)
+
+void exec_inst_00(Core_t *core, uint8_t inst, uint8_t *val)
 {
         uint8_t num;
 
@@ -259,12 +294,20 @@ void exec_inst_00(Core_t *core, uint8_t *ram, uint8_t inst, uint8_t *val)
                         NZ_FLAGS(num);
                         break;
 
+                case 0x02: // JMP
+
+                        break;
+
+                case 0x03: // JMP abs
+
+                        break;
+
                 case 0x04: // STY
                         *val = core->y;
                         break;
 
                 case 0x05: // LDY
-                        core->x = *val;
+                        core->y = *val;
 
                         NZ_FLAGS(core->y);
                         break;
@@ -279,7 +322,7 @@ void exec_inst_00(Core_t *core, uint8_t *ram, uint8_t inst, uint8_t *val)
         }
 }
 
-void exec_inst_01(Core_t *core, uint8_t *ram, uint8_t inst, uint8_t *val)
+void exec_inst_01(Core_t *core, uint8_t inst, uint8_t *val)
 {
         switch (inst >> 5)
         {
@@ -325,7 +368,7 @@ void exec_inst_01(Core_t *core, uint8_t *ram, uint8_t inst, uint8_t *val)
         }
 }
 
-void exec_inst_10(Core_t *core, uint8_t *ram, uint8_t inst, uint8_t *val)
+void exec_inst_10(Core_t *core, uint8_t inst, uint8_t *val)
 {
         uint8_t c_in;
 
@@ -393,174 +436,238 @@ void exec_inst_10(Core_t *core, uint8_t *ram, uint8_t inst, uint8_t *val)
         }
 }
 
-void exec_inst_old(Core_t *core, uint8_t *ram)
+void exec_inst_br(Core_t *core, uint8_t *ram, uint8_t inst)
 {
-	uint8_t inst;
-        uint16_t addr;
-        uint8_t addr_hi, addr_lo;
-        register uint8_t num, c_in;
-	
-	inst = ram[core->pc];
+        uint16_t offset;
 
-	printf("Inst: %x\n", inst);
-	printf("PC: %x\n", core->pc);
-	printf("\n");
-        
-	core->pc++;
+        offset = ram[core->pc];
 
-	switch (inst)
-	{
-		case 0x08: // PHP imp --- Tested
+        if (offset & 0x80)
+                offset |= 0xff00; // Convert 8 bit neg number to 16 bit neg number (two's comp.)
+
+        switch (inst & 0xc0)
+        {
+                case 0x00: // N flag --- Tested
+                        if ( (core->sr >> 7) == ((inst >> 5) & 1) )
+                                core->pc += (offset - 1);
+                        else    
+                                core->pc++;
+                        break;
+
+                case 0x40: // V flag --- Tested
+                        if ( ((core->sr >> 6) & 1) == ((inst >> 5) & 1) )
+                                core->pc += (offset - 1);
+                        else    
+                                core->pc++;
+                        break;
+
+                case 0x80: // C flag --- Tested
+                        if ( (core->sr & 1) == ((inst >> 5) & 1) )
+                                core->pc += (offset - 1);
+                        else    
+                                core->pc++;
+                        break;
+
+                case 0xc0: // Z flag --- Tested
+                        if ( ((core->sr >> 1) & 1) == ((inst >> 5) & 1) )
+                                core->pc += (offset - 1);
+                        else    
+                                core->pc++;
+                        break;
+        }
+}
+
+void exec_inst_sb(Core_t *core, uint8_t inst)
+{
+        if (inst == 0x98) // TYA --- Tested
+        {
+                core->a = core->y;
+                NZ_FLAGS(core->a);
+
+                return;
+        }
+
+        switch (inst & 0xc0)
+        {
+                case 0x00: // C bit --- Tested
+                        core->sr = (core->sr & 0xfe) | ((inst >> 5) & 0x01);
+                        break;
+
+                case 0x40: // I bit --- Tested
+                        core->sr = (core->sr & 0xfb) | ((inst >> 3) & 0x04);
+                        break;
+
+                case 0x80: // V bit --- Tested
+                        core->sr = (core->sr & 0xbf) | ((inst << 1) & 0x04);
+                        break;
+
+                case 0xc0: // D bit --- Tested
+                        core->sr = (core->sr & 0xf7) | ((inst >> 2) & 0x08);
+                        break;
+        }
+}
+
+void exec_sp_00(Core_t *core, uint8_t *ram, uint8_t inst)
+{
+        uint8_t hi_byte;
+        // Inst TYA is found in exec_inst_sb
+        // Inst DEX is found in exec_sp_10
+
+        switch (inst)
+        {
+                case 0x00: // BRK
+                        ram[0x100 | core->sp] = (core->pc) >> 8; // Push high byte of return addr
+                        core->sp--;
+
+                        ram[0x100 | core->sp] = (core->pc); // Push low byte of return addr
+                        core->sp--;
+
+                        core->sr |= 0x30; // Break flag set
+                        ram[0x100 | core->sp] = core->sr; // Push flags
+                        core->sp--;
+
+                        core->pc = (ram[0xfffb] << 8) | ram[0xfffa];
+                        break;
+
+                case 0x20: // JSR --- Tested
+                        ram[0x100 | core->sp] = (core->pc + 1) >> 8; // Push high byte of return addr-1
+                        core->sp--;
+
+                        ram[0x100 | core->sp] = (core->pc + 1); // Push low byte of return addr-1
+                        core->sp--;
+                        
+                        core->pc = ram[core->pc++] | (ram[core->pc] << 8);
+                        break;
+
+                case 0x40: // RTI
+                        core->sp++;
+                        core->sr = ram[0x100 | core->sp]; // Pull flags
+                        core->sr &= 0xcf; // Break flag clear
+
+                        core->sp++;
+                        core->pc = ram[0x100 | core->sp];
+
+                        core->sp++;
+                        core->pc |= ram[0x100 | core->sp] << 8;
+
+                        break;
+
+                case 0x60: // RTS --- Tested
+                        core->sp++;
+                        core->pc = ram[0x100 | core->sp];
+
+                        core->sp++;
+                        core->pc |= ram[0x100 | core->sp] << 8;
+
+                        core->pc++;
+                        break;
+
+                case 0x08: // PHP --- Tested
+                        core->sr |= 0x30; // Break flag set
+
                         ram[0x100 | core->sp] = core->sr;
 
                         core->sp--;
-			break;
-
-                case 0x18: // CLC impl --- Tested
-                        core->sr &= 0xfe;
                         break;
-
-                case 0x28: // PLP impl --- Tested
+                
+                case 0x28: // PLP --- Tested
                         core->sp++;
 
                         core->sr = ram[0x100 | core->sp];
+
+                        core->sr &= 0xcf; // Break flag clear
                         break;
 
-                case 0x38: // SEC impl
-                        core->sr |= 0x1;
-                        break;
-
-                case 0x48: // PHA impl --- Tested
+                case 0x48: // PHA --- Tested
                         ram[0x100 | core->sp] = core->a;
 
                         core->sp--;
                         break;
 
-                case 0x58: // CLI impl -- Tested
-                        core->sr &= 0xfb;
-                        break;
-
-                case 0x68: // PLA impl
+                case 0x68: // PLA --- Tested
                         core->sp++;
 
                         core->a = ram[0x100 | core->sp];
 
                         NZ_FLAGS(core->a);
-
                         break;
 
-                case 0x78: // SEI immpl --- Tested
-                        core->sr |= 0x04;
-                        break;
-
-                case 0x88: // DEY impl
+                case 0x88: // DEY --- Tested
                         core->y--;
-
                         NZ_FLAGS(core->y);
-
                         break;
 
-                case 0x98: // TYA impl
-                        core->a = core->y;
-
-                        NZ_FLAGS(core->a);
-
-                        break;
-
-                case 0xa8: // TAY impl
+                case 0xa8: // TAY --- Tested
                         core->y = core->a;
-
                         NZ_FLAGS(core->y);
-
                         break;
 
-                case 0xb8: // CLV impl --- Tested
-                        core->sr &= 0xbf;
-                        break;
-
-                case 0xc8: // INY  impl
+                case 0xc8: // INY --- Tested
                         core->y++;
-
                         NZ_FLAGS(core->y);
-
                         break;
 
-                case 0xd8: // CLD impl --- Tested
-                        core->sr &= 0xf7;
-                        break;
-
-                case 0xe8: // INX impl
+                case 0xe8: // INX --- Tested
                         core->x++;
-
                         NZ_FLAGS(core->x);
-
                         break;
 
-                case 0xf8: // SED impl --- Tested
-                        core->sr |= 0x08;
+                case 0x4c: // JMP abs --- Tested
+                        core->pc = ram[core->pc++] | (ram[core->pc] << 8); 
                         break;
 
-                case 0x8a: // TXA impl
+                case 0x6c: // JMP ind --- Tested
+                        core->pc = ram[core->pc++] | (ram[core->pc] << 8); // Perform this once again below because its indirect
+                        
+                        ((core->pc & 0xff) == 0xff) ? // There is no carry on the indirect jump. The address does not change pages
+                                (hi_byte = ram[core->pc - 0xff]) :
+                                (hi_byte = ram[core->pc + 1]);
+                                
+                        core->pc = ram[core->pc] | (hi_byte << 8); 
+                        break;
+
+                default:
+                        decode_grp_00(core, ram, inst);
+        }
+}
+
+void exec_sp_10(Core_t *core, uint8_t *ram, uint8_t inst)
+{
+        switch (inst)
+        {
+                case 0x8a: // TXA -- Tested
                         core->a = core->x;
-
                         NZ_FLAGS(core->a);
                         break;
 
-                case 0x9a: // TXS impl --- Tested
+                case 0x9a: // TXS --- Tested
                         core->sp = core->x;
-
                         NZ_FLAGS(core->sp);
-
                         break;
 
-                case 0xaa: // TAX impl --- Tested
+                case 0xaa: // TAX --- Tested
                         core->x = core->a;
-
                         NZ_FLAGS(core->x);
-
                         break;
 
-                case 0xba: // TSX impl
+                case 0xba: // TSX --- Tested
                         core->x = core->sp;
-
                         NZ_FLAGS(core->x);
-
                         break;
 
-                case 0xca: // DEX impl --- Tested
+                case 0xca: // DEX --- Tested
                         core->x--;
-
                         NZ_FLAGS(core->x);
-
                         break;
-	}
 
-	printf("Acc: %x\n", core->a);
-	printf("X: %x\n", core->x);
-        printf("Y: %x\n", core->y);
+                case 0xea: // NOP --- Tested
+                        break;
 
-        printf("NV-BDIZC: ");
-        printf("%x", (core->sr >> 7) & 0x1);
-        printf("%x", (core->sr >> 6) & 0x1);
-        printf("-");
-        printf("%x", (core->sr >> 4) & 0x1);
-        printf("%x", (core->sr >> 3) & 0x1);
-        printf("%x", (core->sr >> 2) & 0x1);
-        printf("%x", (core->sr >> 1) & 0x1);
-        printf("%x", (core->sr >> 0) & 0x1);
-        printf("\n");
-
-        printf("Stack Pointer: %x\n", core->sp);
-        
-        printf("\n");
-
-        for (uint8_t i = 0xFF; i > 0xF9; i--)
-        {
-                printf("Stack 0x%x: %x\n", i, ram[0x100 | i]);
+                default:
+                        decode_grp_10(core, ram, inst);
         }
-
-	printf("\n");
 }
+
 
 void adc_inst(Core_t *core, uint8_t num)
 {
@@ -571,11 +678,11 @@ void adc_inst(Core_t *core, uint8_t num)
 
         if (core->sr & 0x08) // BDC Mode
         {
-                a_hi = core->a >> 4; // Isolate high nibble
-                num_hi = num >> 4; // Isolate high nibble
+                a_hi = core->a >> 4; // Isolate high nibbles
+                num_hi = num >> 4;
 
-                core->a &= 0x0f; // Isolate low nibble
-                num &= 0x0f; // Isolate low nibble
+                core->a &= 0x0f; // Isolate low nibbles
+                num &= 0x0f;
 
                 core->a += num + c_in;
 
@@ -599,12 +706,12 @@ void adc_inst(Core_t *core, uint8_t num)
                 else    
                         core->sr &= 0xfe;
 
-                test_v = (core->a & 0x80) ^ (num & 0x80); // Overflow flag 1
+                test_v = (core->a & 0x80) ^ (num & 0x80); // Overflow flag part 1
 
                 core->a += num + c_in;
 
                 if (!test_v)
-                        core->sr |= ((num & 0x80) ^ (core->a & 0x80)) >> 1; // Overflow flag 2
+                        core->sr |= ((num & 0x80) ^ (core->a & 0x80)) >> 1; // Overflow flag part 2
         }
 
         NZ_FLAGS(core->a);
@@ -619,11 +726,11 @@ void sbc_inst(Core_t *core, uint8_t num)
 
         if (core->sr & 0x08) // BDC mode
         {
-                a_hi = core->a >> 4; // Isolate high nibble
-                num_hi = num >> 4; // Isolate high nibble
+                a_hi = core->a >> 4; // Isolate high nibbles
+                num_hi = num >> 4;
 
-                core->a &= 0x0f; // Isolate low nibble
-                num &= 0x0f; // Isolate low nibble
+                core->a &= 0x0f; // Isolate low nibbles
+                num &= 0x0f;
 
                 core->a -= (num + c_in);
                 
@@ -645,12 +752,12 @@ void sbc_inst(Core_t *core, uint8_t num)
                 else    
                         core->sr &= 0xfe;
                 
-                test_v = (core->a & 0x80) ^ (num & 0x80); // Overflow flag 1
+                test_v = (core->a & 0x80) ^ (num & 0x80); // Overflow flag part 1
                 
                 core->a -= (num + c_in);
 
                 if (!test_v)
-                        core->sr |= ((num & 0x80) ^ (core->a & 0x80)) >> 1; // Overflow flag 2
+                        core->sr |= ((num & 0x80) ^ (core->a & 0x80)) >> 1; // Overflow flag part 2
         }
 
         NZ_FLAGS(core->a);
@@ -669,4 +776,42 @@ void cmp_inst(Core_t *core, uint8_t num1, uint8_t num2)
         num1 -= (num2 + c_in);
 
         NZ_FLAGS(num1);
+}
+
+
+void core_rst(Core_t *core, uint8_t *ram)
+{
+        core->pc = (ram[0xfffd] << 8) | (ram[0xfffc]);
+
+        core->sr |= 0x04;
+}
+
+void core_nmi(Core_t *core, uint8_t *ram)
+{
+        ram[0x100 | core->sp] = (core->pc) >> 8;
+        core->sp--;
+
+        ram[0x100 | core->sp] = (core->pc);
+        core->sp--;
+
+        ram[0x100 | core->sp] = core->sr;
+        core->sp--;
+
+        core->pc = (ram[0xfffb] << 8) | ram[0xfffa]; // Load NMI vector into PC
+}
+
+void core_irq(Core_t *core, uint8_t *ram)
+{
+        ram[0x100 | core->sp] = (core->pc) >> 8;
+        core->sp--;
+
+        ram[0x100 | core->sp] = (core->pc);
+        core->sp--;
+
+        ram[0x100 | core->sp] = core->sr;
+        core->sp--;
+
+        core->sr |= 0x04; // Set I flag
+
+        core->pc = (ram[0xffff] << 8) | ram[0xfffe]; // Load IRQ vector into PC
 }

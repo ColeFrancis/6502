@@ -5,24 +5,24 @@
 int main (int argc, char **argv) 
 {
 	Core_t* core = malloc(sizeof(Core_t));
-	uint8_t ram[65536];
+	uint8_t ram[MAX_MEM_SIZE];
 
-	core->a = 0xc0;
+	core->RES_pin = 1;
 
-	ram[0] = 0x6c;
-	ram[1] = 0x0a;
-	ram[2] = 0x01;
+	core->sp = 0xff;
 
-	ram[0x010a] = 0xa9;
-	ram[0x010b] = 0x0f;
+	// Test ALL opcodes
 
-	// Implement Z flag for bdc? (acts how it would in binary mode)
-	// PHP pushes processor status register with break flag set?
-	 
-	for (int i = 0; i < 2; i++)
+	ram[0xfffa] = 0x00; // NMI jump vector
+	ram[0xfffb] = 0x00;
+	ram[0xfffc] = 0x00; // RES jump vector
+	ram[0xfffd] = 0x00;
+	ram[0xfffe] = 0x00; // IRQ jump vector
+	ram[0xffff] = 0x00;
+	
+	for (long i = 0; i < 100; i++)
 	{	
-		//exec_inst_old(core, ram);
-		decode_group(core, ram);
+		decode_inst(core, ram);
 	}
 
 	return 1;	
