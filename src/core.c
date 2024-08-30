@@ -20,7 +20,6 @@ void decode_inst(Core_t *core, uint8_t *ram)
                         core_rst(core, ram);
         }
         core->prev_res = core->RES_pin;
-        // Interrupts triggered at end of inst execution
 	
 	inst = ram[core->pc];
 	core->pc++;
@@ -198,7 +197,7 @@ void decode_grp_01(Core_t *core, uint8_t *ram, uint8_t inst)
                         break;
                         
                 case 0x05: // zpg,X
-                        val = &ram[0xFF & (ram[core->pc] + core->x)];
+                        val = &ram[0xFF & (ram[core->pc] + core->x)];  // & with 0xff to ignore carry bit moving reference into another page
 
                         core->pc++;
                         break;
@@ -256,10 +255,10 @@ void decode_grp_10(Core_t *core, uint8_t *ram, uint8_t inst)
 
                 case 0x04: // zpg,X (zpg,Y for STX and LDX)
                         if (inst & 0xe0 == 0x80 || inst & 0xe0 == 0x90)
-                                val = &ram[0xFF & (ram[core->pc] + core->y)];
+                                val = &ram[0xff & (ram[core->pc] + core->y)]; // & with 0xff to ignore carry bit moving reference into another page
 
                         else
-                                val = &ram[0xFF & (ram[core->pc] + core->x)];;
+                                val = &ram[0xff & (ram[core->pc] + core->x)];;
 
                         core->pc++;
                         break;
@@ -781,9 +780,9 @@ void cmp_inst(Core_t *core, uint8_t num1, uint8_t num2)
 
 void core_rst(Core_t *core, uint8_t *ram)
 {
-        core->pc = (ram[0xfffd] << 8) | (ram[0xfffc]);
+        core->sr |= 0x04; // Set I flag
 
-        core->sr |= 0x04;
+        core->pc = (ram[0xfffd] << 8) | (ram[0xfffc]); // Load RES vector into PC
 }
 
 void core_nmi(Core_t *core, uint8_t *ram)
