@@ -1,9 +1,5 @@
 #include <stdint.h>
-#include <stdio.h> // <-- Temporary, for testing
-
 #include "core.h"
-
-#define DEBUG
 
 #define NZ_FLAGS(x) core->sr = (core->sr & 0x7f) | ((x) & 0x80); \
                     (x) ? (core->sr &= 0xfd) : (core->sr |= 0x2);
@@ -23,11 +19,6 @@ void decode_inst(Core_t *core, uint8_t *ram)
 	
 	inst = ram[core->pc];
 	core->pc++;
-
-        #ifdef DEBUG
-                printf("Inst: %x\n", inst);
-                printf("\n");
-        #endif
         
         // Inst format: aaabbbcc 
         //      aaa: inst
@@ -59,45 +50,17 @@ void decode_inst(Core_t *core, uint8_t *ram)
                 case 0x02:
                         if ((inst & 0x8f) == 0x8a)
                                 exec_sp_10(core, ram, inst);
-
+                        
                         else
                                 decode_grp_10(core, ram, inst);
+                        
                         break;
         }
-
-        #ifdef DEBUG
-                printf("PC: %x\n", core->pc);
-                printf("Acc: %x\n", core->a);
-                printf("X: %x\n", core->x);
-                printf("Y: %x\n", core->y);
-
-                printf("NV-BDIZC: ");
-                printf("%x", (core->sr >> 7) & 0x1);
-                printf("%x", (core->sr >> 6) & 0x1);
-                printf("-");
-                printf("%x", (core->sr >> 4) & 0x1);
-                printf("%x", (core->sr >> 3) & 0x1);
-                printf("%x", (core->sr >> 2) & 0x1);
-                printf("%x", (core->sr >> 1) & 0x1);
-                printf("%x", (core->sr >> 0) & 0x1);
-                printf("\n");
-
-                printf("Stack Pointer: %x\n", core->sp);
-                
-                printf("\n");
-
-                for (uint8_t i = 0xFF; i > 0xF9; i--)
-                {
-                        printf("Stack 0x%x: %x\n", i, ram[0x100 | i]);
-                }
-
-                printf("\n");
-        #endif
 
         if (core->prev_nmi && !core->NMI_pin)
                 core_nmi(core, ram);
                 
-        else if (core->IRQ_pin && !(core->sr & 0x04))
+        else if (!core->IRQ_pin && !(core->sr & 0x04))
                 core_irq(core, ram);
 
         core->prev_nmi = core->NMI_pin;
@@ -253,25 +216,25 @@ void decode_grp_10(Core_t *core, uint8_t *ram, uint8_t inst)
                         core->pc++;
                         break;
 
-                case 0x04: // zpg,X (zpg,Y for STX and LDX)
-                        if (inst & 0xe0 == 0x80 || inst & 0xe0 == 0x90)
+                case 0x05: // zpg,X (zpg,Y for STX and LDX)
+                        if (inst == 0x96 || inst == 0xb6)
                                 val = &ram[0xff & (ram[core->pc] + core->y)]; // & with 0xff to ignore carry bit moving reference into another page
-
+                        
                         else
                                 val = &ram[0xff & (ram[core->pc] + core->x)];;
-
+                        
                         core->pc++;
                         break;
 
                 case 0x07: // abs,X (abs,Y for LDX)
                         addr = ram[core->pc++] | (ram[core->pc] << 8);
 
-                        if (inst & 0xe0 == 0x90)
+                        if (inst == 0xbe)
                                 val = &ram[addr + core->y];
-
+                        
                         else
                                 val = &ram[addr + core->x];
-
+                        
                         core->pc++;
                         break;
         }
@@ -493,6 +456,7 @@ void exec_inst_sb(Core_t *core, uint8_t inst)
                         break;
 
                 case 0x40: // I bit --- Tested
+                        printf("test\n");
                         core->sr = (core->sr & 0xfb) | ((inst >> 3) & 0x04);
                         break;
 
@@ -515,17 +479,9 @@ void exec_sp_00(Core_t *core, uint8_t *ram, uint8_t inst)
         switch (inst)
         {
                 case 0x00: // BRK
-                        ram[0x100 | core->sp] = (core->pc) >> 8; // Push high byte of return addr
-                        core->sp--;
-
-                        ram[0x100 | core->sp] = (core->pc); // Push low byte of return addr
-                        core->sp--;
-
                         core->sr |= 0x30; // Break flag set
-                        ram[0x100 | core->sp] = core->sr; // Push flags
-                        core->sp--;
-
-                        core->pc = (ram[0xfffb] << 8) | ram[0xfffa];
+                        
+                        core_irq(core, ram);
                         break;
 
                 case 0x20: // JSR --- Tested
@@ -780,6 +736,7 @@ void cmp_inst(Core_t *core, uint8_t num1, uint8_t num2)
 
 void core_rst(Core_t *core, uint8_t *ram)
 {
+        
         core->sr |= 0x04; // Set I flag
 
         core->pc = (ram[0xfffd] << 8) | (ram[0xfffc]); // Load RES vector into PC

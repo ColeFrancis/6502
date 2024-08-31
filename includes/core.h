@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define MAX_MEM_SIZE 65536
+#define MEM_SIZE 65536
 
 typedef struct {
 	uint8_t a;
@@ -16,13 +16,16 @@ typedef struct {
 
 	uint8_t sr;
 
-	// 3 pins active low
+	uint8_t prev_res;
+	uint8_t prev_nmi;
+
+	// For realistic emulation, these 3 pins are the only 3 which should be
+	//		changed outside of these functions
+	// To start the core, set all to > 0. To trigger any of the interups, 
+	//		pull the corresponding pin to 0
 	uint8_t NMI_pin;
 	uint8_t IRQ_pin;
 	uint8_t RES_pin;
-
-	uint8_t prev_res; // To keep track of previous state of reset pins to be triggered on
-	uint8_t prev_nmi;
 } Core_t;
 
 void decode_inst(Core_t *core, uint8_t *ram);

@@ -1,8 +1,6 @@
 #include "stdlib.h"
 #include "stdio.h"
-#include "init.h"
-
-// Init function is just pulling RES_pin low
+#include "file_handler.h"
 
 void load_ram (char *file_name, uint8_t *ram)
 {
@@ -22,7 +20,7 @@ void load_ram (char *file_name, uint8_t *ram)
     file_size = ftell(file);
     rewind(file);
 
-    read_size = (file_size > MAX_MEM_SIZE) ? MAX_MEM_SIZE : (int) file_size;
+    read_size = (file_size > MEM_SIZE) ? MEM_SIZE : (int) file_size;
 
     read_result = fread(ram, 1, read_size, file);
     if (read_result != read_size)
@@ -32,4 +30,20 @@ void load_ram (char *file_name, uint8_t *ram)
     }
 
     fclose(file);
+}
+
+void dump_ram (char* file_name, uint8_t *ram)
+{
+        FILE *file;
+
+        file = fopen(file_name, "wb");
+        if (file == NULL)
+        {
+                fprintf(stderr, "Error, unable to open %s\n", file_name);
+                exit(1);
+        }
+
+        fwrite(ram, 1, MEM_SIZE, file);
+
+        fclose(file);
 }
