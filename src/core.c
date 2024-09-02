@@ -456,7 +456,6 @@ void exec_inst_sb(Core_t *core, uint8_t inst)
                         break;
 
                 case 0x40: // I bit --- Tested
-                        printf("test\n");
                         core->sr = (core->sr & 0xfb) | ((inst >> 3) & 0x04);
                         break;
 
