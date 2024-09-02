@@ -9,8 +9,9 @@ I started and finished this project with the goal to learn more about the instru
 # Features
 
 ## Accuracy
-As was said before, this emulator was made to be instruction-accurate. All of the NMOS 6502 instructions are fully
-implemented and functional. Clock cycles are not tracked with this emulator, rather one instruction is emulated with
+All of the NMOS 6502 instructions are fully
+implemented and functional.  
+As was said before, this emulator was made to be instruction-accurate.  Clock cycles are not tracked with this emulator, rather one instruction is emulated with
 each update of the processor.
 
 ## Performance
@@ -24,7 +25,7 @@ Something about loading binary file into ram and ram into binary file
 # Build
 
 ## Requirements
-Any system with a C compiler and the standard library will be able to run this emulator, though Linux is needed to run make and the gettimeofday function in the test program.
+Any system with a C compiler and the standard library will be able to run this emulator, though Linux is needed to run make and the gettimeofday function in the test program.  
 A C compiler such as gcc running c99 or newer with the standard library. Older versions have not been tested.
 
 ## Compilation
@@ -36,13 +37,16 @@ There are no dependencies.
 # Usage
 
 ## Running
-The program can be compiled and ran as is if you would like to run the test program. The core can be used, however, in any other program or system emulator. To run the core, simply set the RST_pin to a value aboce zero, then execute the decode_inst() function for each instruction.
+The program can be compiled and ran as is if you would like to run the test program. The core can be used, however, in any other program or system emulator.  
+To run the core, simply set the RST_pin to a value aboce zero, then execute the decode_inst() function for each instruction.
 
 ## Loading Ram
-2 file processing functions are included in the file_handler header. load_ram() is used to load the contents of a binary file into the ram to be run through the core. dump_ram() can then be used to save the resulting contents of the ram into the same or a new binary file.
+2 file processing functions are included in the file_handler header. 
+*load_ram() is used to load the contents of a binary file into the ram to be run through the core. 
+*dump_ram() can then be used to save the resulting contents of the ram into the same or a new binary file.
 
 ## Interupts
-This core features the same interupts as the real 6502, namely the RST pin, the NMI pin, and the IRQ pin. To trigger an interupt or a reset, set the corresponding pun variable to 0 and run an instruction using the decode_inst() function. 
+This core features the same interupts as the real 6502, namely the RST pin, the NMI pin, and the IRQ pin. To trigger an interupt or a reset, set the corresponding pun variable to 0 and run an instruction using the decode_inst() function.  
 
 The NMI is edge-sensitive, triggering on the falling edge, or just the first cycle after the NMI_pin is set to zero. The IRQ is level-sensitive, triggering when the IRQ_pin and the interupt flag are set to zero. Resets are triggered by pulling the RST_pin low, then back to high.
 
@@ -66,6 +70,10 @@ There are no currently known bugs. If any are found, please lset me know. My inf
 The primary limitation of the emulator is not being cycle-accurate. Because of this, it would be very difficult to expand and use to emulate full systems, such as the NES or Comodor 64.
 
 # References
+The following sites were used in the creation of this emulator:  
+[6502 Instruction Set](https://www.masswerk.at/6502/6502_instruction_set.html)  
+[6502.org: Tutorials and Aids](http://www.6502.org/tutorials/6502opcodes.html)  
+[6502 Instruction Set Decoded](https://llx.com/Neil/a2/opcodes.html)
 
 # License
 This code is covered under the standard MIT license.
