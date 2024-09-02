@@ -1,5 +1,5 @@
-#include "stdlib.h"
-#include "stdio.h"
+#include <stdlib.h>
+#include <stdio.h>
 #include "file_handler.h"
 
 void load_ram (char *file_name, uint8_t *ram)
