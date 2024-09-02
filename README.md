@@ -42,8 +42,8 @@ To run the core, simply set the RST_pin to a value aboce zero, then execute the 
 
 ## Loading Ram
 2 file processing functions are included in the file_handler header. 
-*load_ram() is used to load the contents of a binary file into the ram to be run through the core. 
-*dump_ram() can then be used to save the resulting contents of the ram into the same or a new binary file.
+* load_ram() is used to load the contents of a binary file into the ram to be run through the core. 
+* dump_ram() can then be used to save the resulting contents of the ram into the same or a new binary file.
 
 ## Interupts
 This core features the same interupts as the real 6502, namely the RST pin, the NMI pin, and the IRQ pin. To trigger an interupt or a reset, set the corresponding pun variable to 0 and run an instruction using the decode_inst() function.  
