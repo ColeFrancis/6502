@@ -15,7 +15,9 @@ As was said before, this emulator was made to be instruction-accurate.  Clock cy
 each update of the processor.
 
 ## Performance
-The core ran the test program ran at __ on an i7 3.2 GHz with 16GB of ram. The same program ran 70e6 instructions/sec or about 0.27GHz on an i5 1.0 GHz with 8GB Windows machine running WSL.
+The core ran the test program ran at 81e6 instructions/sec or about 0.33GHz on a machine with an i7 3.2 GHz and 16GB of ram. 
+
+The same program ran 70e6 instructions/sec or about 0.27GHz on a a Windows machine running WSL with an i5 1.0 GHz and 8GB of ram.
 
 ## Additional features
 
@@ -53,7 +55,9 @@ The NMI is edge-sensitive, triggering on the falling edge, or just the first cyc
 # Technical details
 
 ## Core/code structure
-This emulator uses a single class to handle all of the internal and external functions of the 6502 chip. There is also a child class called ExtendedCore which includes additional methods for handling input and output binary files.
+This emulator uses a single class to handle all of the internal and external functions of the 6502 chip. 
+
+There is also a child class called ExtendedCore which includes additional methods for handling input and output binary files.
 
 ## Cycle accuracy
 As stated above, this emulator is instruction accurate, not cycle accurate. The purpose of this project was simply to learn the ISA and 
