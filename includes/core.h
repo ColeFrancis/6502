@@ -1,54 +1,59 @@
 #ifndef CORE_H
 #define CORE_H
 
-#include <stdint.h>
+#include <cstdint>
 
 #define MEM_SIZE 65536
 
-typedef struct {
-	uint8_t a;
+class Core {
+	private: 
+		uint8_t a;
+		uint8_t x;
+		uint8_t y;
+		uint8_t sp;
+		uint16_t pc;
+		uint8_t sr;
 
-	uint8_t x;
-	uint8_t y;
-	
-	uint8_t sp;
-	uint16_t pc;
+		uint8_t prev_res;
+		uint8_t prev_nmi;
 
-	uint8_t sr;
+		uint8_t NMI_pin;
+		uint8_t IRQ_pin;
+		uint8_t RES_pin;
 
-	uint8_t prev_res;
-	uint8_t prev_nmi;
+		uint8_t inst;
 
-	// For realistic emulation, these 3 pins are the only 3 which should be
-	//		changed outside of these functions
-	// To start the core, set all to > 0. To trigger any of the interups, 
-	//		pull the corresponding pin to 0, then run decode_inst() to emulate 
-	//		a single instruction
-	uint8_t NMI_pin;
-	uint8_t IRQ_pin;
-	uint8_t RES_pin;
-} Core_t;
+		void decodeGrp00();
+		void decodeGrp01();
+		void decodeGrp10();
 
-void decode_inst(Core_t *core, uint8_t *ram);
+		void execInst00(uint8_t *val);
+		void execInst01(uint8_t *val);
+		void execInst10(uint8_t *val);
+		void execInstBr(); // Branch instructions
+		void execInstSb(); // Set bit instructions
+		void execSp00(); // Execute special 00 instructions
+		void execSp10(); // Execute special 10 instructions
 
-void decode_grp_00(Core_t *core, uint8_t *ram, uint8_t inst);
-void decode_grp_01(Core_t *core, uint8_t *ram, uint8_t inst);
-void decode_grp_10(Core_t *core, uint8_t *ram, uint8_t inst);
+		void adcInst(uint8_t num);
+		void sbcInst(uint8_t num);
+		void cmpInst(uint8_t &num1, uint8_t num2);
 
-void exec_inst_00(Core_t *core, uint8_t inst, uint8_t *val);
-void exec_inst_01(Core_t *core, uint8_t inst, uint8_t *val);
-void exec_inst_10(Core_t *core, uint8_t inst, uint8_t *val);
-void exec_inst_br(Core_t *core, uint8_t *ram, uint8_t inst); // Branch instructions
-void exec_inst_sb(Core_t *core, uint8_t inst); // Set bit instructions
-void exec_sp_00(Core_t *core, uint8_t *ram, uint8_t inst); // Execute special 00 instructions
-void exec_sp_10(Core_t *core, uint8_t *ram, uint8_t inst); // Execute special 10 instructions
+		void coreRST();
+		void coreNMI();
+		void coreIRQ();
 
-void adc_inst(Core_t *core, uint8_t num);
-void sbc_inst(Core_t *core, uint8_t num);
-void cmp_inst(Core_t *core, uint8_t num1, uint8_t num2);
+	protected:
+		uint8_t *ram;
 
-void core_rst(Core_t *core, uint8_t *ram);
-void core_nmi(Core_t *core, uint8_t *ram);
-void core_irq(Core_t *core, uint8_t *ram);
+	public:
+		Core(uint8_t *p) : ram(p) {}
+
+		void decodeInst();
+
+		void setRES(uint8_t pin) {RES_pin = pin;}
+		void setNMI(uint8_t pin) {NMI_pin = pin;}
+		void setIRQ(uint8_t pin) {IRQ_pin = pin;}
+};
 
 #endif
