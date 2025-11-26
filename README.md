@@ -15,14 +15,11 @@ As was said before, this emulator was made to be instruction-accurate.  Clock cy
 each update of the processor.
 
 ## Performance
-The core ran the test program ran at 81e6 instructions/sec or about 0.33GHz on a machine with an i7 3.2 GHz and 16GB of ram. 
-
-The same program ran 70e6 instructions/sec or about 0.27GHz on a a Windows machine running WSL with an i5 1.0 GHz and 8GB of ram.
+The core ran the test program ran at 81e6 instructions/sec or about 0.33GHz on a machine with an i7 3.2 GHz and 16GB of ram.
 
 ## Additional features
 
-Something about hardware interrupts
-Something about loading binary file into ram and ram into binary file
+Included ability to upload binary files in an extended core class.
 
 # Build
 
@@ -60,7 +57,7 @@ This emulator uses a single class to handle all of the internal and external fun
 There is also a child class called ExtendedCore which includes additional methods for handling input and output binary files.
 
 ## Cycle accuracy
-As stated above, this emulator is instruction accurate, not cycle accurate. The purpose of this project was simply to learn the ISA and 
+As stated above, this emulator is instruction accurate, not cycle accurate. The purpose of this project was simply to learn the ISA and hardware emulation.
 
 ## Input/output
 Just as with the original 6502, this emulator fetures memory-mapped io, with the possibility of hardware interrupts.
@@ -68,7 +65,7 @@ Just as with the original 6502, this emulator fetures memory-mapped io, with the
 # Known Issues
 
 ## Bugs
-There are no currently known bugs. If any are found, please lset me know. My information can be found in the contact section.
+The JMP instruction is currently nonfunctional
 
 ## Limitations
 The primary limitation of the emulator is not being cycle-accurate. Because of this, it would be very difficult to expand and use to emulate full systems, such as the NES or Comodor 64.
